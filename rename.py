@@ -1,29 +1,50 @@
 import os
-import csv
 import sys
+import re
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 tuplearray = []
+p = re.compile(r'<br \/>([^\>]+)<br \/><a[^\>]*title="[^\>]*\/([a-zA-Z\s()0-9-.]+)"')
 
-with open('matches.csv') as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=';')
-    line_count = 0
+targetfolder = os.path.join("..","targets")
 
-    for row in csv_reader:
-        if line_count == 0:
-            print(f'Column names are:\n{", ".join(row)}')
-            line_count += 1
-        else:
-            if(line_count % 2 == 1):
-                tuplearray.append([])
-                tuplearray[-1].append(row[5])
-            else:
-                tuplearray[-1].append(row[5])
-                tuplearray[-1][0] += "." + tuplearray[-1][1].split(".")[-1]
-            line_count += 1
-    print(f'Processed {line_count} lines.')
+if not os.path.exists(targetfolder):
+    os.makedirs(targetfolder)
 
-    for row in tuplearray:
-        print(f'Rename {row[1]} \t to \t {row[0]}\t')
+exclude = set(['targets'])
+
+for root, dirs, files in os.walk(".."):
+    dirs[:] = [d for d in dirs if d not in exclude]
+    for name in files:
+        if name.endswith((".mp4")):
+            oldpath = os.path.join(root, name)
+            newpath = os.path.join("..","targets", name)
+            os.rename(oldpath, newpath)
+            print(f'{oldpath} moved to {newpath}')
+
+with open('content.txt', encoding='utf8') as file:
+    
+    lines = ""
+
+    for output in file.readlines():
+        output = output.replace('&amp;', '&')
+        lines += output
+
+    results = p.findall(lines)
+
+    for entry in results:
+        print(f'Rename {entry[1]} \t to \t {entry[0]}\t')
+
 
 while True: 
     query = input('Do you really want to rename all of the files listed?[N/y]:') 
@@ -36,16 +57,19 @@ while True:
         answer = query[0].lower() 
         break 
 if answer == 'y': 
-    for row in tuplearray:
+    for r in results:
         try:
-            print(f'Renaming {row[1]} \t to \t {row[0]}\t...\t\t\t',end="")
-            os.rename(row[1],row[0])
-            print(f'Done!')
+            print(f'Renaming {r[1]} \t to \t {r[0]+".mp4"}\t...\t\t\t',end="")
+            prefix = os.path.join('..', 'targets')
+            oldname = os.path.join(prefix, r[1])
+            newname = os.path.join(prefix, r[0]+".mp4")
+            os.rename(oldname, newname)
+            print(bcolors.OKGREEN + f'Done!' + bcolors.ENDC)
         except FileNotFoundError:
-            None
+            print(bcolors.WARNING +f'Missing!' + bcolors.ENDC)
             #print(f'{row[1]} not Found')
         except:
-            print(f'Error Renaming {row[1]} \t to \t {row[0]}\t...\t\t\t',end="")
-            print("Error:", sys.exc_info()[0])
+            print(bcolors.FAIL + f'Error Renaming {r[1]} \t to \t {r[0]+".mp4"}\t...\t\t\t',end="")
+            print("Error:", sys.exc_info()[0] + bcolors.ENDC )
 
 
